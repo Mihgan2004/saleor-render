@@ -1,27 +1,28 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
-# Миграции и статика
+# Миграции + статика
 python manage.py migrate --noinput
 python manage.py collectstatic --noinput || true
 
-# Однократная инициализация демо-данных (без дублей)
+# Однократная загрузка демо-данных
 if [ "${RUN_POPULATEDB:-false}" = "true" ]; then
-  echo "Checking if DB is empty to run populatedb…"
-  if python - <<'PY'
+  python - <<'PY'
 import os, django, sys
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", os.environ.get("DJANGO_SETTINGS_MODULE", "saleor.settings"))
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", os.environ.get("DJANGO_SETTINGS_MODULE","saleor.settings"))
 django.setup()
 from saleor.product.models import Product
+# exit 0 if DB has data, 1 if empty
 sys.exit(0 if Product.objects.exists() else 1)
 PY
-  then
-    echo "DB already contains data. Skipping populatedb."
-  else
-    echo "Populating database with sample data and creating superuser…"
+  NEED_POPULATE=$?
+  if [ "$NEED_POPULATE" -ne 0 ]; then
+    echo "Populating DB with sample data and creating superuser…"
     python manage.py populatedb --createsuperuser --noinput
+  else
+    echo "DB already has data, skip populatedb."
   fi
 fi
 
-# Запуск приложения — слушаем именно $PORT от Render
+# Запуск — слушаем PORT от Render
 exec gunicorn saleor.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers ${WEB_CONCURRENCY:-4} --timeout 60

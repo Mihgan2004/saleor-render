@@ -5,6 +5,8 @@ services:
     plan: free
     dockerfilePath: ./Dockerfile
     autoDeploy: true
+    startCommand: /usr/local/bin/render-entrypoint.sh
+    healthCheckPath: /graphql/
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -15,15 +17,19 @@ services:
           name: saleor-redis
           type: redis
           property: connectionString
+
       - key: ALLOWED_HOSTS
-        # Для дев-стенда ок, в проде укажи хост(ы) явно
         value: "*"
+      - key: ALLOWED_CLIENT_HOSTS
+        value: "*"
+      - key: CSRF_TRUSTED_ORIGINS
+        value: "https://*.onrender.com"
+
       - key: SECRET_KEY
         generateValue: true
       - key: DEBUG
         value: "True"
 
-      # Создание админа при первичной инициализации демо-данных
       - key: DASHBOARD_SUPERUSER_EMAIL
         value: admin@example.com
       - key: DASHBOARD_SUPERUSER_PASSWORD
@@ -33,15 +39,12 @@ services:
       - key: DASHBOARD_SUPERUSER_LAST_NAME
         value: User
 
-      # Управляет однократной загрузкой демо-данных (см. entrypoint)
       - key: RUN_POPULATEDB
         value: "true"
 
   - type: redis
     name: saleor-redis
     plan: free
-    # Ошибка "services[1] must specify IP allow list" — это как раз Redis.
-    # Для дев-окружения разрешим всё. В проде сузь диапазон.
     ipAllowList:
       - source: 0.0.0.0/0
         description: allow all (dev)
@@ -51,7 +54,6 @@ databases:
     plan: free
     databaseName: saleor
     user: saleor
-    # Аналогично — разрешим всё для дев.
     ipAllowList:
       - source: 0.0.0.0/0
         description: allow all (dev)
