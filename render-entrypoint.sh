@@ -5,7 +5,7 @@ set -eu
 python3 manage.py migrate --noinput
 python3 manage.py collectstatic --noinput || true
 
-# 2) создать суперюзера, если отсутствует (без populatedb)
+# 2) создать суперюзера, если ещё нет (без populatedb)
 python3 - <<'PY'
 import os, django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", os.environ.get("DJANGO_SETTINGS_MODULE","saleor.settings"))
@@ -26,19 +26,13 @@ else:
     print("No superuser env provided, skip.")
 PY
 
-# 3) демо‑данные — в фоне, чтобы не блокировать проброс порта
+# 3) демо-данные — опционально и в фоне, чтобы не блокировать порт
 if [ "${RUN_POPULATEDB:-false}" = "true" ]; then
   (python3 manage.py populatedb --noinput >/proc/1/fd/1 2>/proc/1/fd/2 &) || true
 fi
 
-# 4) uWSGI — слушаем именно $PORT, как требует Render
-#   --wsgi-file и --callable гарантируют корректный импорт
-exec uwsgi \
-  --http :${PORT:-8000} \
-  --wsgi-file saleor/wsgi.py \
-  --callable application \
-  --master \
-  --processes ${WEB_CONCURRENCY:-2} \
-  --threads 4 \
-  --harakiri 60 \
-  --vacuum
+# 4) запуск веб-сервера — слушаем именно $PORT
+exec gunicorn saleor.wsgi:application \
+  --bind 0.0.0.0:${PORT:-8000} \
+  --workers ${WEB_CONCURRENCY:-2} \
+  --timeout 60
