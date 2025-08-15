@@ -1,11 +1,14 @@
 #!/bin/sh
 set -eu
 
+# Гарантируем, что код доступен питону
+export PYTHONPATH="/app:${PYTHONPATH:-}"
+
 # 1) миграции и статика
 python3 manage.py migrate --noinput
 python3 manage.py collectstatic --noinput || true
 
-# 2) создать суперюзера, если ещё нет (без populatedb)
+# 2) суперюзер (без populatedb)
 python3 - <<'PY'
 import os, django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", os.environ.get("DJANGO_SETTINGS_MODULE","saleor.settings"))
@@ -26,13 +29,14 @@ else:
     print("No superuser env provided, skip.")
 PY
 
-# 3) демо-данные — опционально и в фоне, чтобы не блокировать порт
+# 3) демо-данные — в фоне
 if [ "${RUN_POPULATEDB:-false}" = "true" ]; then
   (python3 manage.py populatedb --noinput >/proc/1/fd/1 2>/proc/1/fd/2 &) || true
 fi
 
-# 4) запуск веб-сервера — слушаем именно $PORT
+# 4) старт gunicorn — явно задаём рабочую директорию
 exec gunicorn saleor.wsgi:application \
+  --chdir /app \
   --bind 0.0.0.0:${PORT:-8000} \
   --workers ${WEB_CONCURRENCY:-2} \
   --timeout 60
