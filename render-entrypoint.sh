@@ -1,16 +1,16 @@
 #!/bin/sh
 set -eu
 
-# Базовые переменные
-export PORT="${PORT:-8000}"
-export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-saleor.settings}"
+# Путь к коду и настройки Django
 export PYTHONPATH="/app:${PYTHONPATH:-}"
+export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-saleor.settings}"
+export PORT="${PORT:-8000}"
 
-echo "[entrypoint] Sanity-check Python imports..."
+echo "[entrypoint] Sanity-check imports..."
 python3 - <<'PY'
 import importlib
-for mod in ("saleor", "saleor.settings", "saleor.asgi"):
-    importlib.import_module(mod)
+for m in ("saleor", "saleor.settings", "saleor.asgi"):
+    importlib.import_module(m)
 print("Saleor import OK")
 PY
 
@@ -23,7 +23,7 @@ if not url:
     print("DATABASE_URL is not set", file=sys.stderr); sys.exit(1)
 for i in range(30):
     try:
-        conn = psycopg2.connect(url); conn.close()
+        c = psycopg2.connect(url); c.close()
         print("Postgres is up."); sys.exit(0)
     except Exception as e:
         print(f"Postgres not ready yet ({e}), retry {i+1}/30...")
@@ -63,10 +63,9 @@ if [ "${RUN_POPULATEDB:-false}" = "true" ]; then
   (python3 manage.py populatedb --noinput >/proc/1/fd/1 2>/proc/1/fd/2 &) || true
 fi
 
-echo "[entrypoint] Starting ASGI: gunicorn + uvicorn worker on 0.0.0.0:${PORT} ..."
-# Важно: Saleor 3.x — ASGI
+echo "[entrypoint] Starting ASGI (gunicorn + uvicorn worker) on 0.0.0.0:${PORT} ..."
 exec gunicorn -k uvicorn.workers.UvicornWorker saleor.asgi:application \
   --chdir /app \
   --bind 0.0.0.0:${PORT} \
-  --workers ${WEB_CONCURRENCY:-2} \
+  --workers ${WEB_CONCURRENCY:-1} \
   --timeout 60
