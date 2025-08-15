@@ -1,8 +1,13 @@
 FROM ghcr.io/saleor/saleor:3.21
 
-ENV PORT=8000
+# На всякий случай зафиксируем рабочую директорию
+WORKDIR /app
 
-# При старте: миграции + демо-данные + gunicorn
-CMD python manage.py migrate && \
-    python manage.py populatedb --createsuperuser --noinput && \
-    gunicorn saleor.wsgi:application --bind 0.0.0.0:8000
+# Логи без буфера
+ENV PYTHONUNBUFFERED=1
+
+# Скрипт запуска (мидграйты + опциональный демо-сид + gunicorn)
+COPY render-entrypoint.sh /usr/local/bin/render-entrypoint.sh
+RUN chmod +x /usr/local/bin/render-entrypoint.sh
+
+CMD ["/usr/local/bin/render-entrypoint.sh"]
