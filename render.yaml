@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: saleor-core
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: saleor-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: saleor-redis
+          type: redis
+          property: connectionString
+      - key: ALLOWED_HOSTS
+        value: "*"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "True"
+      - key: DASHBOARD_SUPERUSER_EMAIL
+        value: admin@example.com
+      - key: DASHBOARD_SUPERUSER_PASSWORD
+        value: admin
+      - key: DASHBOARD_SUPERUSER_FIRST_NAME
+        value: Admin
+      - key: DASHBOARD_SUPERUSER_LAST_NAME
+        value: User
+
+databases:
+  - name: saleor-db
+    plan: free
+
+  - type: redis
+    name: saleor-redis
+    plan: free
