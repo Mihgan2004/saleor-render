@@ -5,7 +5,6 @@ services:
     plan: free
     dockerfilePath: ./Dockerfile
     autoDeploy: true
-    startCommand: /usr/local/bin/render-entrypoint.sh
     healthCheckPath: /graphql/
     envVars:
       - key: DATABASE_URL
