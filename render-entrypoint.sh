@@ -1,12 +1,12 @@
 #!/bin/sh
 set -eu
 
-# 1) миграции и статика (коротко)
-python manage.py migrate --noinput
-python manage.py collectstatic --noinput || true
+# 1) миграции и статика
+python3 manage.py migrate --noinput
+python3 manage.py collectstatic --noinput || true
 
-# 2) создать суперюзера, если его нет (без populatedb)
-python - <<'PY'
+# 2) создать суперюзера, если отсутствует (без populatedb)
+python3 - <<'PY'
 import os, django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", os.environ.get("DJANGO_SETTINGS_MODULE","saleor.settings"))
 django.setup()
@@ -26,10 +26,10 @@ else:
     print("No superuser env provided, skip.")
 PY
 
-# 3) опционально — демо-данные в фоне, чтобы не блокировать порт-скан
+# 3) демо-данные — в фоне (не блокируем поднятие порта)
 if [ "${RUN_POPULATEDB:-false}" = "true" ]; then
-  (python manage.py populatedb --noinput >/proc/1/fd/1 2>/proc/1/fd/2 &) || true
+  (python3 manage.py populatedb --noinput >/proc/1/fd/1 2>/proc/1/fd/2 &) || true
 fi
 
-# 4) старт приложения — слушаем именно $PORT
-exec gunicorn saleor.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers ${WEB_CONCURRENCY:-2} --timeout 60
+# 4) запуск — слушаем именно $PORT, вызываем через python3 -m (мимо PATH)
+exec python3 -m gunicorn saleor.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers ${WEB_CONCURRENCY:-2} --timeout 60
