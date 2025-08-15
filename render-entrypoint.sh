@@ -1,5 +1,5 @@
 #!/bin/sh
-set -euo pipefail
+set -eu
 
 # Базовые переменные
 export PORT="${PORT:-8000}"
